@@ -131,6 +131,19 @@ CREATE TABLE similar_songs (
     PRIMARY KEY (song_id, similar_song_id)
 );
 
+CREATE TABLE user_events (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+    event_type VARCHAR(50) CHECK (event_type IN ('play', 'like', 'skip')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_user_events_updated_at
+BEFORE UPDATE ON user_events
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 
 CREATE TABLE user_recommendations (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -162,3 +175,24 @@ CREATE INDEX idx_songs_title ON songs USING gin(to_tsvector('english', title));
 CREATE INDEX idx_albums_title ON albums USING gin(to_tsvector('english', title));
 CREATE INDEX idx_artists_name ON artists USING gin(to_tsvector('english', name));
 
+
+
+CREATE TABLE audio_variants (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+    storage_key TEXT NOT NULL,              -- e.g. s3://bucket/tracks/{song_id}/128.mp3
+    cdn_path TEXT,                          -- e.g. /tracks/{song_id}/128.mp3
+    codec VARCHAR(20) NOT NULL,             -- mp3 | aac
+    bitrate_kbps INT NOT NULL,              -- 64 | 128 | 256 ...
+    sample_rate INT,                        -- e.g. 44100
+    channels INT,                           -- 2
+    duration_seconds INT,                   -- (redundant but convenient)
+    file_size_bytes BIGINT,
+    sha256 TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_audio_variants_updated_at
+BEFORE UPDATE ON audio_variants
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
